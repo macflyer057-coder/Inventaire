@@ -4,7 +4,6 @@
   <meta charset="UTF-8" />
   <title>Inventaire QR</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <!-- Librairie de scan QR -->
   <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
   <style>
     body { font-family: system-ui, sans-serif; margin: 10px; }
@@ -50,11 +49,7 @@
 
     function loadScans() {
       const data = localStorage.getItem(STORAGE_KEY);
-      if (data) {
-        scans = JSON.parse(data);
-      } else {
-        scans = [];
-      }
+      scans = data ? JSON.parse(data) : [];
       renderTable();
     }
 
@@ -67,32 +62,25 @@
       tbody.innerHTML = "";
       scans.forEach((scan, index) => {
         const tr = document.createElement("tr");
-        const tdIndex = document.createElement("td");
-        const tdText = document.createElement("td");
-        const tdDate = document.createElement("td");
-        tdIndex.textContent = index + 1;
-        tdText.textContent = scan.text;
-        tdDate.textContent = scan.date;
-        tr.appendChild(tdIndex);
-        tr.appendChild(tdText);
-        tr.appendChild(tdDate);
+        tr.innerHTML = `
+          <td>${index + 1}</td>
+          <td>${scan.text}</td>
+          <td>${scan.date}</td>
+        `;
         tbody.appendChild(tr);
       });
     }
 
     function addScan(text) {
       const now = new Date();
-      const dateStr = now.toLocaleString();
-      scans.push({ text, date: dateStr });
+      scans.push({ text, date: now.toLocaleString() });
       saveScans();
       renderTable();
     }
 
     async function startScan() {
-      const startBtn = document.getElementById("start-scan");
-      const stopBtn = document.getElementById("stop-scan");
-      startBtn.style.display = "none";
-      stopBtn.style.display = "inline-block";
+      document.getElementById("start-scan").style.display = "none";
+      document.getElementById("stop-scan").style.display = "inline-block";
 
       if (!html5QrCode) {
         html5QrCode = new Html5Qrcode(scannerDivId);
@@ -105,29 +93,22 @@
         config,
         (decodedText) => {
           addScan(decodedText);
-          // Option : arrêter après un scan
-          // stopScan();
+          stopScan();   // ← Scan unique : arrêt immédiat après lecture
         },
-        (errorMessage) => {
-          // erreurs de scan ignorées
-        }
+        () => {}
       ).catch(err => {
         alert("Erreur lors du démarrage du scan : " + err);
-        startBtn.style.display = "inline-block";
-        stopBtn.style.display = "none";
+        document.getElementById("start-scan").style.display = "inline-block";
+        document.getElementById("stop-scan").style.display = "none";
       });
     }
 
     function stopScan() {
-      const startBtn = document.getElementById("start-scan");
-      const stopBtn = document.getElementById("stop-scan");
       if (html5QrCode) {
         html5QrCode.stop().then(() => {
-          startBtn.style.display = "inline-block";
-          stopBtn.style.display = "none";
+          document.getElementById("start-scan").style.display = "inline-block";
+          document.getElementById("stop-scan").style.display = "none";
           document.getElementById(scannerDivId).innerHTML = "";
-        }).catch(err => {
-          alert("Erreur lors de l’arrêt du scan : " + err);
         });
       }
     }
@@ -137,14 +118,10 @@
         alert("Aucun scan à exporter.");
         return;
       }
+
       let csv = "index;texte;date\n";
       scans.forEach((scan, index) => {
-        const line = [
-          index + 1,
-          scan.text.replace(/"/g, '""'),
-          scan.date.replace(/"/g, '""')
-        ].map(v => `"${v}"`).join(";");
-        csv += line + "\n";
+        csv += `"${index + 1}";"${scan.text.replace(/"/g, '""')}";"${scan.date}"\n`;
       });
 
       const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
@@ -152,9 +129,7 @@
       const a = document.createElement("a");
       a.href = url;
       a.download = "inventaire_qr.csv";
-      document.body.appendChild(a);
       a.click();
-      document.body.removeChild(a);
       URL.revokeObjectURL(url);
     }
 
