@@ -130,7 +130,7 @@ async function exportExcel() {
     const wagon = document.getElementById("wagon-number").value.trim();
     if (!wagon) { alert("Numéro de wagon manquant"); return; }
 
-    const url = "https://github.com/macflyer057-coder/Inventaire/raw/refs/heads/main/Test_fiche_INFRA_.xlsx";
+    const url = "https://raw.githubusercontent.com/macflyer057-coder/Inventaire/main/Test_fiche_INFRA_.xlsx";
     const response = await fetch(url);
     const arrayBuffer = await response.arrayBuffer();
     const workbook = XLSX.read(arrayBuffer, { type: "array" });
