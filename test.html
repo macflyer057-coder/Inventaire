@@ -21,8 +21,8 @@ button {
     font-size: 1rem;
 }
 #reader {
-    margin-top: 20px;
     width: 300px;
+    margin-bottom: 20px;
 }
 table {
     margin-top: 20px;
@@ -42,6 +42,9 @@ th, td {
 <body>
 
 <h2>Fiche INFRA – Scan Essieux</h2>
+
+<!-- Scanner QR placé en haut -->
+<div id="reader"></div>
 
 <!-- Numéro de wagon -->
 <label for="wagon-number">Numéro de wagon :</label><br>
@@ -85,9 +88,6 @@ th, td {
         <tr><td>4</td><td colspan="6">En attente…</td></tr>
     </tbody>
 </table>
-
-<!-- Zone d'affichage du scanner -->
-<div id="reader"></div>
 
 <script>
 
@@ -161,6 +161,9 @@ function startScan(index) {
             alert("Essieu " + (index + 1) + " enregistré !");
             currentScanner.stop();
             document.getElementById("reader").innerHTML = "";
+
+            // Remonter la page pour afficher le tableau
+            window.scrollTo({ top: 0, behavior: "smooth" });
         },
         error => {}
     );
