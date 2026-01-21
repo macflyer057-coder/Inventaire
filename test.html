@@ -148,12 +148,12 @@ async function exportExcel() {
         if (essieux[i]) {
             const e = essieux[i];
             const c = mapping[i];
-            sheet[c[0]] = { v: e.sn };
-            sheet[c[1]] = { v: e.type };
-            sheet[c[2]] = { v: e.tonnage };
-            sheet[c[3]] = { v: e.owner };
-            sheet[c[4]] = { v: e.rev };
-            sheet[c[5]] = { v: e.atelier };
+            sheet[c[0]].v = e.sn;
+            sheet[c[1]].v = e.type;
+            sheet[c[2]].v = e.tonnage;
+            sheet[c[3]].v = e.owner;
+            sheet[c[4]].v = e.rev;
+            sheet[c[5]].v = e.atelier;
         }
     }
 
