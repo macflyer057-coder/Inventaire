@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<title>Fiche INFRA – Export Essieux</title>
+<title>Scan Essieux – Fiche INFRA</title>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://unpkg.com/html5-qrcode"></script>
@@ -19,7 +19,7 @@ th, td { padding: 6px; text-align: center; }
 
 <body>
 
-<h2>Fiche INFRA – Scan Essieux</h2>
+<h2>Scan Essieux – Fiche INFRA</h2>
 
 <div id="reader"></div>
 
@@ -28,8 +28,7 @@ th, td { padding: 6px; text-align: center; }
        style="padding:6px; width:220px;"><br><br>
 
 <button id="scan-btn" onclick="startScan()">Scanner</button>
-
-<button onclick="exportExcel()">Exporter vers Excel</button>
+<button onclick="exportExcel()">Exporter SCAN.xlsx</button>
 
 <table id="table-essieux">
 <thead>
@@ -129,51 +128,37 @@ async function startScan() {
     );
 }
 
-// Safe cell write (keeps formatting)
-function setCell(sheet, cell, value) {
-    if (!sheet[cell]) sheet[cell] = { t: "s", v: "" };
-    sheet[cell].v = value;
-}
-
-// Export Excel
+// Export SCAN.xlsx
 async function exportExcel() {
+
     const wagon = document.getElementById("wagon-number").value.trim();
     if (!wagon) { alert("Numéro de wagon manquant"); return; }
 
-    const url = "https://raw.githubusercontent.com/macflyer057-coder/Inventaire/main/Test_fiche_INFRA_.xlsx";
+    // Création d'un workbook vide
+    const wb = XLSX.utils.book_new();
 
-    const response = await fetch(url);
-    const arrayBuffer = await response.arrayBuffer();
-    const workbook = XLSX.read(arrayBuffer, { type: "array" });
+    // Structure de la feuille SCAN
+    const headers = ["SN", "Type", "Tonnage", "Owner", "Révision", "Atelier"];
+    const rows = [headers];
 
-    const sheet = workbook.Sheets["VPI04AN26-2 4 Essieux"];
-
-    const mapping = [
-        ["H14","H15","I15","H16","H17","H18"],
-        ["J14","J15","K15","J16","J17","J18"],
-        ["L14","L15","M15","L16","L17","L18"],
-        ["N14","N15","O15","N16","N17","N18"]
-    ];
-
+    // Ajouter les 4 essieux
     for (let i = 0; i < 4; i++) {
-        if (essieux[i]) {
-            const e = essieux[i];
-            const c = mapping[i];
-
-            setCell(sheet, c[0], e.sn);
-            setCell(sheet, c[1], e.type);
-            setCell(sheet, c[2], e.tonnage);
-            setCell(sheet, c[3], e.owner);
-            setCell(sheet, c[4], e.rev);
-            setCell(sheet, c[5], e.atelier);
-        }
+        const e = essieux[i] || { sn:"", type:"", tonnage:"", owner:"", rev:"", atelier:"" };
+        rows.push([e.sn, e.type, e.tonnage, e.owner, e.rev, e.atelier]);
     }
 
-    const wbout = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
+    // Convertir en feuille Excel
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+
+    // Ajouter la feuille SCAN au workbook
+    XLSX.utils.book_append_sheet(wb, ws, "SCAN");
+
+    // Exporter le fichier
+    const wbout = XLSX.write(wb, { bookType: "xlsx", type: "array" });
     const blob = new Blob([wbout], { type: "application/octet-stream" });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
-    link.download = `Fiche INFRA wagon ${wagon}.xlsx`;
+    link.download = `SCAN_wagon_${wagon}.xlsx`;
     link.click();
 }
 </script>
