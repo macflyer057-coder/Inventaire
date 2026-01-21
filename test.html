@@ -4,38 +4,16 @@
 <meta charset="UTF-8">
 <title>Fiche INFRA – Export Essieux</title>
 
-<!-- Librairie Excel -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-
-<!-- Scanner QR -->
 <script src="https://unpkg.com/html5-qrcode"></script>
 
 <style>
-body {
-    font-family: Arial, sans-serif;
-    padding: 20px;
-}
-button {
-    padding: 10px 15px;
-    margin: 5px;
-    font-size: 1rem;
-}
-#reader {
-    width: 300px;
-    margin-bottom: 20px;
-}
-table {
-    margin-top: 20px;
-    border-collapse: collapse;
-    width: 100%;
-}
-table, th, td {
-    border: 1px solid black;
-}
-th, td {
-    padding: 6px;
-    text-align: center;
-}
+body { font-family: Arial, sans-serif; padding: 20px; }
+button { padding: 10px 15px; margin: 5px; font-size: 1rem; }
+#reader { width: 300px; margin-bottom: 20px; }
+table { margin-top: 20px; border-collapse: collapse; width: 100%; }
+table, th, td { border: 1px solid black; }
+th, td { padding: 6px; text-align: center; }
 </style>
 </head>
 
@@ -43,66 +21,41 @@ th, td {
 
 <h2>Fiche INFRA – Scan Essieux</h2>
 
-<!-- Scanner QR placé en haut -->
 <div id="reader"></div>
 
-<!-- Numéro de wagon -->
-<label for="wagon-number">Numéro de wagon :</label><br>
-<input 
-  type="text" 
-  id="wagon-number" 
-  placeholder="12 34 5678 901-2"
-  pattern="\\d{2} \\d{2} \\d{4} \\d{3}-\\d"
-  required
-  style="font-size:1rem; padding:6px; width:200px;"
-><br><br>
+<label>Numéro de wagon :</label><br>
+<input id="wagon-number" type="text" placeholder="12 34 5678 901-2"
+       style="padding:6px; width:220px;"><br><br>
 
-<!-- Boutons de scan -->
-<button onclick="startScan(0)">Scanner Essieu 1</button>
-<button onclick="startScan(1)">Scanner Essieu 2</button>
-<button onclick="startScan(2)">Scanner Essieu 3</button>
-<button onclick="startScan(3)">Scanner Essieu 4</button>
+<button id="scan-btn" onclick="startScan()">Scanner</button>
 
-<br><br>
-
-<!-- Export -->
 <button onclick="exportExcel()">Exporter vers Excel</button>
 
-<!-- Tableau récapitulatif -->
 <table id="table-essieux">
-    <thead>
-        <tr>
-            <th>Essieu</th>
-            <th>SN</th>
-            <th>Type</th>
-            <th>Tonnage</th>
-            <th>Détenteur</th>
-            <th>Révision</th>
-            <th>Atelier</th>
-        </tr>
-    </thead>
-    <tbody>
-        <tr><td>1</td><td colspan="6">En attente…</td></tr>
-        <tr><td>2</td><td colspan="6">En attente…</td></tr>
-        <tr><td>3</td><td colspan="6">En attente…</td></tr>
-        <tr><td>4</td><td colspan="6">En attente…</td></tr>
-    </tbody>
+<thead>
+<tr>
+<th>Essieu</th><th>SN</th><th>Type</th><th>Tonnage</th><th>Détenteur</th><th>Révision</th><th>Atelier</th>
+</tr>
+</thead>
+<tbody>
+<tr><td>1</td><td colspan="6">En attente…</td></tr>
+<tr><td>2</td><td colspan="6">En attente…</td></tr>
+<tr><td>3</td><td colspan="6">En attente…</td></tr>
+<tr><td>4</td><td colspan="6">En attente…</td></tr>
+</tbody>
 </table>
 
 <script>
-
-// Stockage des 4 essieux
 let essieux = [null, null, null, null];
 let currentScanner = null;
+let nextIndex = 0;
 
-// Analyse du QR Code
 function parseQR(text) {
     const parts = text.split(";");
     let data = {};
     parts.forEach(p => {
-        const [key, value] = p.split("=");
-        if (!key || !value) return;
-        data[key.trim().toLowerCase()] = value.trim();
+        const [k, v] = p.split("=");
+        if (k && v) data[k.trim().toLowerCase()] = v.trim();
     });
     return {
         sn: data.sn || "",
@@ -114,46 +67,39 @@ function parseQR(text) {
     };
 }
 
-// Mise à jour du tableau
 function updateTable() {
     const tbody = document.querySelector("#table-essieux tbody");
     tbody.innerHTML = "";
-
     for (let i = 0; i < 4; i++) {
         const e = essieux[i];
-
         if (!e) {
-            tbody.innerHTML += `
-                <tr>
-                    <td>${i+1}</td>
-                    <td colspan="6">En attente…</td>
-                </tr>`;
+            tbody.innerHTML += `<tr><td>${i+1}</td><td colspan="6">En attente…</td></tr>`;
         } else {
             tbody.innerHTML += `
-                <tr>
-                    <td>${i+1}</td>
-                    <td>${e.sn}</td>
-                    <td>${e.type}</td>
-                    <td>${e.tonnage}</td>
-                    <td>${e.owner}</td>
-                    <td>${e.rev}</td>
-                    <td>${e.atelier}</td>
-                </tr>`;
+            <tr>
+                <td>${i+1}</td>
+                <td>${e.sn}</td>
+                <td>${e.type}</td>
+                <td>${e.tonnage}</td>
+                <td>${e.owner}</td>
+                <td>${e.rev}</td>
+                <td>${e.atelier}</td>
+            </tr>`;
         }
     }
 }
 
-// Lancer le scanner (async pour bien gérer stop/clear)
-async function startScan(index) {
+async function startScan() {
 
-    // Si un scanner est déjà actif → on le ferme proprement
+    if (nextIndex >= 4) {
+        alert("Tous les essieux sont scannés");
+        document.getElementById("scan-btn").disabled = true;
+        return;
+    }
+
     if (currentScanner) {
-        try {
-            await currentScanner.stop();
-        } catch(e) {}
-        try {
-            await currentScanner.clear();
-        } catch(e) {}
+        try { await currentScanner.stop(); } catch(e){}
+        try { await currentScanner.clear(); } catch(e){}
         currentScanner = null;
     }
 
@@ -163,57 +109,33 @@ async function startScan(index) {
         { facingMode: "environment" },
         { fps: 10, qrbox: 250 },
         async qrText => {
-            essieux[index] = parseQR(qrText);
-            updateTable();
-            alert("Essieu " + (index + 1) + " enregistré !");
 
-            try {
-                await currentScanner.stop();
-            } catch(e) {}
-            try {
-                await currentScanner.clear();
-            } catch(e) {}
+            essieux[nextIndex] = parseQR(qrText);
+            updateTable();
+            nextIndex++;
+
+            try { await currentScanner.stop(); } catch(e){}
+            try { await currentScanner.clear(); } catch(e){}
             currentScanner = null;
 
-            // Remonter la page
-            window.scrollTo({ top: 0, behavior: "smooth" });
-        },
-        error => {}
+            if (nextIndex >= 4) {
+                document.getElementById("scan-btn").disabled = true;
+                alert("Tous les essieux sont scannés");
+            }
+        }
     );
 }
 
-// Vérification du numéro de wagon
-function getWagonNumber() {
-    const input = document.getElementById("wagon-number");
-    const value = input.value.trim();
-    const regex = /^\d{2} \d{2} \d{4} \d{3}-\d$/;
-
-    if (!regex.test(value)) {
-        alert("Le numéro de wagon doit être au format : XX XX XXXX XXX-X");
-        input.focus();
-        return null;
-    }
-    return value;
-}
-
-// Export Excel
 async function exportExcel() {
-
-    const wagon = getWagonNumber();
-    if (!wagon) return;
+    const wagon = document.getElementById("wagon-number").value.trim();
+    if (!wagon) { alert("Numéro de wagon manquant"); return; }
 
     const url = "https://github.com/macflyer057-coder/Inventaire/raw/refs/heads/main/Test_fiche_INFRA_.xlsx";
-
     const response = await fetch(url);
     const arrayBuffer = await response.arrayBuffer();
     const workbook = XLSX.read(arrayBuffer, { type: "array" });
 
     const sheet = workbook.Sheets["VPI04AN26-2 4 Essieux"];
-
-    if (!sheet) {
-        alert("Feuille 'VPI04AN26-2 4 Essieux' introuvable !");
-        return;
-    }
 
     const mapping = [
         ["H14","H15","I15","H16","H17","H18"],
@@ -225,28 +147,23 @@ async function exportExcel() {
     for (let i = 0; i < 4; i++) {
         if (essieux[i]) {
             const e = essieux[i];
-            const cells = mapping[i];
-
-            sheet[cells[0]] = { v: e.sn };
-            sheet[cells[1]] = { v: e.type };
-            sheet[cells[2]] = { v: e.tonnage };
-            sheet[cells[3]] = { v: e.owner };
-            sheet[cells[4]] = { v: e.rev };
-            sheet[cells[5]] = { v: e.atelier };
+            const c = mapping[i];
+            sheet[c[0]] = { v: e.sn };
+            sheet[c[1]] = { v: e.type };
+            sheet[c[2]] = { v: e.tonnage };
+            sheet[c[3]] = { v: e.owner };
+            sheet[c[4]] = { v: e.rev };
+            sheet[c[5]] = { v: e.atelier };
         }
     }
 
     const wbout = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
     const blob = new Blob([wbout], { type: "application/octet-stream" });
-
-    const filename = `Fiche INFRA wagon ${wagon}.xlsx`;
-
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
-    link.download = filename;
+    link.download = `Fiche INFRA wagon ${wagon}.xlsx`;
     link.click();
 }
-
 </script>
 
 </body>
