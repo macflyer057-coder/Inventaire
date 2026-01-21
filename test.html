@@ -145,9 +145,10 @@ function updateTable() {
 // Lancer le scanner
 function startScan(index) {
 
+    // Si un scanner est déjà actif → on le ferme et on recrée le div
     if (currentScanner) {
         currentScanner.stop();
-        document.getElementById("reader").innerHTML = "";
+        document.getElementById("reader").outerHTML = '<div id="reader"></div>';
     }
 
     currentScanner = new Html5Qrcode("reader");
@@ -159,10 +160,13 @@ function startScan(index) {
             essieux[index] = parseQR(qrText);
             updateTable();
             alert("Essieu " + (index + 1) + " enregistré !");
-            currentScanner.stop();
-            document.getElementById("reader").innerHTML = "";
 
-            // Remonter la page pour afficher le tableau
+            currentScanner.stop();
+
+            // Réinitialisation complète du div pour permettre un nouveau scan
+            document.getElementById("reader").outerHTML = '<div id="reader"></div>';
+
+            // Remonter la page
             window.scrollTo({ top: 0, behavior: "smooth" });
         },
         error => {}
