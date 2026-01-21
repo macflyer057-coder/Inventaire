@@ -101,6 +101,7 @@ function parseQR(text) {
     let data = {};
     parts.forEach(p => {
         const [key, value] = p.split("=");
+        if (!key || !value) return;
         data[key.trim().toLowerCase()] = value.trim();
     });
     return {
@@ -142,13 +143,18 @@ function updateTable() {
     }
 }
 
-// Lancer le scanner
-function startScan(index) {
+// Lancer le scanner (async pour bien gérer stop/clear)
+async function startScan(index) {
 
-    // Si un scanner est déjà actif → on le ferme et on recrée le div
+    // Si un scanner est déjà actif → on le ferme proprement
     if (currentScanner) {
-        currentScanner.stop();
-        document.getElementById("reader").outerHTML = '<div id="reader"></div>';
+        try {
+            await currentScanner.stop();
+        } catch(e) {}
+        try {
+            await currentScanner.clear();
+        } catch(e) {}
+        currentScanner = null;
     }
 
     currentScanner = new Html5Qrcode("reader");
@@ -156,15 +162,18 @@ function startScan(index) {
     currentScanner.start(
         { facingMode: "environment" },
         { fps: 10, qrbox: 250 },
-        qrText => {
+        async qrText => {
             essieux[index] = parseQR(qrText);
             updateTable();
             alert("Essieu " + (index + 1) + " enregistré !");
 
-            currentScanner.stop();
-
-            // Réinitialisation complète du div pour permettre un nouveau scan
-            document.getElementById("reader").outerHTML = '<div id="reader"></div>';
+            try {
+                await currentScanner.stop();
+            } catch(e) {}
+            try {
+                await currentScanner.clear();
+            } catch(e) {}
+            currentScanner = null;
 
             // Remonter la page
             window.scrollTo({ top: 0, behavior: "smooth" });
