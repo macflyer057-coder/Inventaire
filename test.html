@@ -50,6 +50,7 @@ let essieux = [null, null, null, null];
 let currentScanner = null;
 let nextIndex = 0;
 
+// Parse QR
 function parseQR(text) {
     const parts = text.split(";");
     let data = {};
@@ -67,6 +68,7 @@ function parseQR(text) {
     };
 }
 
+// Update table
 function updateTable() {
     const tbody = document.querySelector("#table-essieux tbody");
     tbody.innerHTML = "";
@@ -89,6 +91,7 @@ function updateTable() {
     }
 }
 
+// Start scan
 async function startScan() {
 
     if (nextIndex >= 4) {
@@ -126,11 +129,19 @@ async function startScan() {
     );
 }
 
+// Safe cell write (keeps formatting)
+function setCell(sheet, cell, value) {
+    if (!sheet[cell]) sheet[cell] = { t: "s", v: "" };
+    sheet[cell].v = value;
+}
+
+// Export Excel
 async function exportExcel() {
     const wagon = document.getElementById("wagon-number").value.trim();
     if (!wagon) { alert("Numéro de wagon manquant"); return; }
 
     const url = "https://raw.githubusercontent.com/macflyer057-coder/Inventaire/main/Test_fiche_INFRA_.xlsx";
+
     const response = await fetch(url);
     const arrayBuffer = await response.arrayBuffer();
     const workbook = XLSX.read(arrayBuffer, { type: "array" });
@@ -148,12 +159,13 @@ async function exportExcel() {
         if (essieux[i]) {
             const e = essieux[i];
             const c = mapping[i];
-            sheet[c[0]].v = e.sn;
-            sheet[c[1]].v = e.type;
-            sheet[c[2]].v = e.tonnage;
-            sheet[c[3]].v = e.owner;
-            sheet[c[4]].v = e.rev;
-            sheet[c[5]].v = e.atelier;
+
+            setCell(sheet, c[0], e.sn);
+            setCell(sheet, c[1], e.type);
+            setCell(sheet, c[2], e.tonnage);
+            setCell(sheet, c[3], e.owner);
+            setCell(sheet, c[4], e.rev);
+            setCell(sheet, c[5], e.atelier);
         }
     }
 
