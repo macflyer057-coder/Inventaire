@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <title>Inventaire QR</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <!-- Librairie de scan QR -->
+  <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 10px; }
+    h1 { font-size: 1.3rem; margin-bottom: 10px; }
+    button { padding: 8px 12px; margin: 4px 0; font-size: 1rem; }
+    #scanner { width: 100%; max-width: 400px; margin: 10px 0; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    th, td { border: 1px solid #ccc; padding: 4px; font-size: 0.8rem; }
+    th { background: #f0f0f0; }
+    .small { font-size: 0.75rem; color: #666; }
+  </style>
+</head>
+<body>
+  <h1>Inventaire QR</h1>
+
+  <button id="start-scan">Scanner un QR</button>
+  <button id="stop-scan" style="display:none;">Arrêter le scan</button>
+  <div id="scanner"></div>
+
+  <p class="small">
+    Chaque scan est ajouté à la liste ci-dessous et stocké dans le navigateur (localStorage).
+  </p>
+
+  <button id="export-csv">Exporter en CSV</button>
+  <button id="clear-all">Effacer l’inventaire</button>
+
+  <table id="table-scans">
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Texte scanné</th>
+        <th>Date/heure</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <script>
+    const STORAGE_KEY = "inventaire_qr_scans_v1";
+    let scans = [];
+    let html5QrCode = null;
+    const scannerDivId = "scanner";
+
+    function loadScans() {
+      const data = localStorage.getItem(STORAGE_KEY);
+      if (data) {
+        scans = JSON.parse(data);
+      } else {
+        scans = [];
+      }
+      renderTable();
+    }
+
+    function saveScans() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(scans));
+    }
+
+    function renderTable() {
+      const tbody = document.querySelector("#table-scans tbody");
+      tbody.innerHTML = "";
+      scans.forEach((scan, index) => {
+        const tr = document.createElement("tr");
+        const tdIndex = document.createElement("td");
+        const tdText = document.createElement("td");
+        const tdDate = document.createElement("td");
+        tdIndex.textContent = index + 1;
+        tdText.textContent = scan.text;
+        tdDate.textContent = scan.date;
+        tr.appendChild(tdIndex);
+        tr.appendChild(tdText);
+        tr.appendChild(tdDate);
+        tbody.appendChild(tr);
+      });
+    }
+
+    function addScan(text) {
+      const now = new Date();
+      const dateStr = now.toLocaleString();
+      scans.push({ text, date: dateStr });
+      saveScans();
+      renderTable();
+    }
+
+    async function startScan() {
+      const startBtn = document.getElementById("start-scan");
+      const stopBtn = document.getElementById("stop-scan");
+      startBtn.style.display = "none";
+      stopBtn.style.display = "inline-block";
+
+      if (!html5QrCode) {
+        html5QrCode = new Html5Qrcode(scannerDivId);
+      }
+
+      const config = { fps: 10, qrbox: { width: 250, height: 250 } };
+
+      html5QrCode.start(
+        { facingMode: "environment" },
+        config,
+        (decodedText) => {
+          addScan(decodedText);
+          // Option : arrêter après un scan
+          // stopScan();
+        },
+        (errorMessage) => {
+          // erreurs de scan ignorées
+        }
+      ).catch(err => {
+        alert("Erreur lors du démarrage du scan : " + err);
+        startBtn.style.display = "inline-block";
+        stopBtn.style.display = "none";
+      });
+    }
+
+    function stopScan() {
+      const startBtn = document.getElementById("start-scan");
+      const stopBtn = document.getElementById("stop-scan");
+      if (html5QrCode) {
+        html5QrCode.stop().then(() => {
+          startBtn.style.display = "inline-block";
+          stopBtn.style.display = "none";
+          document.getElementById(scannerDivId).innerHTML = "";
+        }).catch(err => {
+          alert("Erreur lors de l’arrêt du scan : " + err);
+        });
+      }
+    }
+
+    function exportCSV() {
+      if (scans.length === 0) {
+        alert("Aucun scan à exporter.");
+        return;
+      }
+      let csv = "index;texte;date\n";
+      scans.forEach((scan, index) => {
+        const line = [
+          index + 1,
+          scan.text.replace(/"/g, '""'),
+          scan.date.replace(/"/g, '""')
+        ].map(v => `"${v}"`).join(";");
+        csv += line + "\n";
+      });
+
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "inventaire_qr.csv";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    function clearAll() {
+      if (!confirm("Effacer tout l’inventaire ?")) return;
+      scans = [];
+      saveScans();
+      renderTable();
+    }
+
+    document.getElementById("start-scan").addEventListener("click", startScan);
+    document.getElementById("stop-scan").addEventListener("click", stopScan);
+    document.getElementById("export-csv").addEventListener("click", exportCSV);
+    document.getElementById("clear-all").addEventListener("click", clearAll);
+
+    loadScans();
+  </script>
+</body>
+</html>
