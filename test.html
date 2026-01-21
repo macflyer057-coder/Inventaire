@@ -4,7 +4,11 @@
 <meta charset="UTF-8">
 <title>Fiche INFRA – Export Essieux</title>
 
+<!-- Librairie Excel -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+<!-- Scanner QR -->
+<script src="https://unpkg.com/html5-qrcode"></script>
 
 <style>
 body {
@@ -16,8 +20,21 @@ button {
     margin: 5px;
     font-size: 1rem;
 }
-input {
-    margin-bottom: 15px;
+#reader {
+    margin-top: 20px;
+    width: 300px;
+}
+table {
+    margin-top: 20px;
+    border-collapse: collapse;
+    width: 100%;
+}
+table, th, td {
+    border: 1px solid black;
+}
+th, td {
+    padding: 6px;
+    text-align: center;
 }
 </style>
 </head>
@@ -38,29 +55,45 @@ input {
 ><br><br>
 
 <!-- Boutons de scan -->
-<button onclick="scanEssieu(0)">Scanner Essieu 1</button>
-<button onclick="scanEssieu(1)">Scanner Essieu 2</button>
-<button onclick="scanEssieu(2)">Scanner Essieu 3</button>
-<button onclick="scanEssieu(3)">Scanner Essieu 4</button>
+<button onclick="startScan(0)">Scanner Essieu 1</button>
+<button onclick="startScan(1)">Scanner Essieu 2</button>
+<button onclick="startScan(2)">Scanner Essieu 3</button>
+<button onclick="startScan(3)">Scanner Essieu 4</button>
 
 <br><br>
 
 <!-- Export -->
 <button onclick="exportExcel()">Exporter vers Excel</button>
 
+<!-- Tableau récapitulatif -->
+<table id="table-essieux">
+    <thead>
+        <tr>
+            <th>Essieu</th>
+            <th>SN</th>
+            <th>Type</th>
+            <th>Tonnage</th>
+            <th>Détenteur</th>
+            <th>Révision</th>
+            <th>Atelier</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr><td>1</td><td colspan="6">En attente…</td></tr>
+        <tr><td>2</td><td colspan="6">En attente…</td></tr>
+        <tr><td>3</td><td colspan="6">En attente…</td></tr>
+        <tr><td>4</td><td colspan="6">En attente…</td></tr>
+    </tbody>
+</table>
+
+<!-- Zone d'affichage du scanner -->
+<div id="reader"></div>
+
 <script>
 
 // Stockage des 4 essieux
 let essieux = [null, null, null, null];
-
-// Simulation du scan (remplace par ton vrai scanner)
-function scanEssieu(index) {
-    const qrText = prompt("Scanne ou colle le texte du QR Code :");
-    if (!qrText) return;
-
-    essieux[index] = parseQR(qrText);
-    alert("Essieu " + (index + 1) + " enregistré !");
-}
+let currentScanner = null;
 
 // Analyse du QR Code
 function parseQR(text) {
@@ -78,6 +111,59 @@ function parseQR(text) {
         rev: data.rev || "",
         atelier: data.atelier || ""
     };
+}
+
+// Mise à jour du tableau
+function updateTable() {
+    const tbody = document.querySelector("#table-essieux tbody");
+    tbody.innerHTML = "";
+
+    for (let i = 0; i < 4; i++) {
+        const e = essieux[i];
+
+        if (!e) {
+            tbody.innerHTML += `
+                <tr>
+                    <td>${i+1}</td>
+                    <td colspan="6">En attente…</td>
+                </tr>`;
+        } else {
+            tbody.innerHTML += `
+                <tr>
+                    <td>${i+1}</td>
+                    <td>${e.sn}</td>
+                    <td>${e.type}</td>
+                    <td>${e.tonnage}</td>
+                    <td>${e.owner}</td>
+                    <td>${e.rev}</td>
+                    <td>${e.atelier}</td>
+                </tr>`;
+        }
+    }
+}
+
+// Lancer le scanner
+function startScan(index) {
+
+    if (currentScanner) {
+        currentScanner.stop();
+        document.getElementById("reader").innerHTML = "";
+    }
+
+    currentScanner = new Html5Qrcode("reader");
+
+    currentScanner.start(
+        { facingMode: "environment" },
+        { fps: 10, qrbox: 250 },
+        qrText => {
+            essieux[index] = parseQR(qrText);
+            updateTable();
+            alert("Essieu " + (index + 1) + " enregistré !");
+            currentScanner.stop();
+            document.getElementById("reader").innerHTML = "";
+        },
+        error => {}
+    );
 }
 
 // Vérification du numéro de wagon
@@ -113,7 +199,6 @@ async function exportExcel() {
         return;
     }
 
-    // Mapping des cellules
     const mapping = [
         ["H14","H15","I15","H16","H17","H18"],
         ["J14","J15","K15","J16","J17","J18"],
