@@ -1,7 +1,7 @@
 {
   "name": "Scan Essieux",
   "short_name": "Essieux",
-  "start_url": "index.html",
+  "start_url": "./",
   "display": "standalone",
   "orientation": "landscape",
   "background_color": "#ffffff",
