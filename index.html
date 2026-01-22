@@ -1,265 +1,110 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-<meta charset="UTF-8">
-<title>Scan Essieux – Fiche INFRA</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SCAN ESSIEUX</title>
 
-<!-- PWA -->
-<link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#0078d7">
+    <!-- PWA -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#0078d7">
 
-<script>
-if ("serviceWorker" in navigator) {
-    navigator.serviceWorker.register("service-worker.js");
-}
-</script>
+    <!-- QR Scanner -->
+    <script src="https://unpkg.com/html5-qrcode"></script>
 
-<!-- Librairies -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="https://unpkg.com/html5-qrcode"></script>
+    <!-- XLSX pour export Excel -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
-<style>
-body {
-    font-family: Arial, sans-serif;
-    padding: 20px;
-    margin: 0;
-    background: #f5f5f5;
-}
-
-.container {
-    max-width: 480px;
-    margin: auto;
-}
-
-h2 {
-    text-align: center;
-    margin-bottom: 20px;
-}
-
-#reader {
-    width: 100%;
-    max-width: 350px;
-    margin: 20px auto;
-    border-radius: 10px;
-    overflow: hidden;
-    background: #000;
-}
-
-input, button {
-    width: 100%;
-    padding: 14px;
-    font-size: 1.1rem;
-    margin-top: 10px;
-    border-radius: 8px;
-    box-sizing: border-box;
-}
-
-button {
-    background: #0078d7;
-    color: white;
-    border: none;
-}
-
-button:disabled {
-    background: #999;
-}
-
-table {
-    width: 100%;
-    margin-top: 25px;
-    border-collapse: collapse;
-    background: white;
-    border-radius: 10px;
-    overflow: hidden;
-}
-
-th, td {
-    padding: 10px;
-    border: 1px solid #ddd;
-    font-size: 0.9rem;
-}
-
-th {
-    background: #0078d7;
-    color: white;
-}
-
-/* Mode paysage : scanner à gauche, infos à droite */
-@media (orientation: landscape) {
-    .container {
-        max-width: 1000px;
-        display: flex;
-        flex-direction: row;
-        gap: 20px;
-        align-items: flex-start;
-        justify-content: center;
-    }
-
-    #reader {
-        width: 50%;
-        max-width: none;
-        margin: 0;
-    }
-
-    .right-panel {
-        width: 50%;
-    }
-
-    table {
-        font-size: 1rem;
-    }
-}
-</style>
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+        #scanner {
+            width: 50%;
+            padding: 10px;
+            background: #f0f0f0;
+        }
+        #resultats {
+            width: 50%;
+            padding: 10px;
+            overflow-y: auto;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+        table, th, td {
+            border: 1px solid #444;
+        }
+        th, td {
+            padding: 8px;
+            text-align: center;
+        }
+        button {
+            padding: 12px;
+            margin-top: 10px;
+            width: 100%;
+            font-size: 18px;
+        }
+    </style>
 </head>
 
 <body>
 
-<div class="container">
-    <div>
-        <h2>Scan Essieux – Fiche INFRA</h2>
-        <div id="reader"></div>
+    <!-- Zone Scanner -->
+    <div id="scanner">
+        <h2>Scanner un essieu</h2>
+        <div id="reader" style="width:100%;"></div>
+        <button onclick="startScan()">Scanner</button>
     </div>
 
-    <div class="right-panel">
-        <label>Numéro de wagon :</label>
-        <input id="wagon-number" type="text" placeholder="12 34 5678 901-2">
+    <!-- Zone Résultats -->
+    <div id="resultats">
+        <h2>Essieux scannés</h2>
 
-        <button id="scan-btn" onclick="startScan()">Scanner</button>
-        <button onclick="exportExcel()">Exporter SCAN.xlsx</button>
+        <label>Numéro du wagon :</label>
+        <input id="wagon" type="text" style="width:100%; font-size:18px; padding:8px;">
 
-        <table id="table-essieux">
+        <table id="tableau">
             <thead>
                 <tr>
                     <th>Essieu</th>
-                    <th>SN</th>
-                    <th>Type</th>
-                    <th>Tonnage</th>
-                    <th>Détenteur</th>
-                    <th>Révision</th>
-                    <th>Atelier</th>
+                    <th>Données</th>
                 </tr>
             </thead>
-            <tbody>
-                <tr><td>1</td><td colspan="6">En attente…</td></tr>
-                <tr><td>2</td><td colspan="6">En attente…</td></tr>
-                <tr><td>3</td><td colspan="6">En attente…</td></tr>
-                <tr><td>4</td><td colspan="6">En attente…</td></tr>
-            </tbody>
+            <tbody></tbody>
         </table>
+
+        <button onclick="exportToExcel()">Exporter SCAN.xlsx</button>
     </div>
-</div>
 
 <script>
-let essieux = [null, null, null, null];
-let currentScanner = null;
-let nextIndex = 0;
+let data = [];
+let essieu = 1;
 
-// Parse QR
-function parseQR(text) {
-    const parts = text.split(";");
-    let data = {};
-    parts.forEach(p => {
-        const [k, v] = p.split("=");
-        if (k && v) data[k.trim().toLowerCase()] = v.trim();
-    });
-    return {
-        sn: data.sn || "",
-        type: data.type || "",
-        tonnage: data.tonnage || "",
-        owner: data.owner || "",
-        rev: data.rev || "",
-        atelier: data.atelier || ""
-    };
-}
+// ----------------------
+// LANCER LE SCAN
+// ----------------------
+function startScan() {
+    const html5QrCode = new Html5Qrcode("reader");
 
-// Update table
-function updateTable() {
-    const tbody = document.querySelector("#table-essieux tbody");
-    tbody.innerHTML = "";
-    for (let i = 0; i < 4; i++) {
-        const e = essieux[i];
-        if (!e) {
-            tbody.innerHTML += `<tr><td>${i+1}</td><td colspan="6">En attente…</td></tr>`;
-        } else {
-            tbody.innerHTML += `
-            <tr>
-                <td>${i+1}</td>
-                <td>${e.sn}</td>
-                <td>${e.type}</td>
-                <td>${e.tonnage}</td>
-                <td>${e.owner}</td>
-                <td>${e.rev}</td>
-                <td>${e.atelier}</td>
-            </tr>`;
-        }
-    }
-}
-
-// Start scan
-async function startScan() {
-
-    if (nextIndex >= 4) {
-        alert("Tous les essieux sont scannés");
-        document.getElementById("scan-btn").disabled = true;
-        return;
-    }
-
-    if (currentScanner) {
-        try { await currentScanner.stop(); } catch(e){}
-        try { await currentScanner.clear(); } catch(e){}
-        currentScanner = null;
-    }
-
-    currentScanner = new Html5Qrcode("reader");
-
-    currentScanner.start(
+    html5QrCode.start(
         { facingMode: "environment" },
         { fps: 10, qrbox: 250 },
-        async qrText => {
-
-            essieux[nextIndex] = parseQR(qrText);
-            updateTable();
-            nextIndex++;
-
-            try { await currentScanner.stop(); } catch(e){}
-            try { await currentScanner.clear(); } catch(e){}
-            currentScanner = null;
-
-            if (nextIndex >= 4) {
-                document.getElementById("scan-btn").disabled = true;
-                alert("Tous les essieux sont scannés");
-            }
+        qrCodeMessage => {
+            ajouterEssieu(qrCodeMessage);
+            html5QrCode.stop();
         }
     );
 }
 
-// Export SCAN.xlsx
-async function exportExcel() {
-
-    const wagon = document.getElementById("wagon-number").value.trim();
-    if (!wagon) { alert("Numéro de wagon manquant"); return; }
-
-    const wb = XLSX.utils.book_new();
-
-    const headers = ["SN", "Type", "Tonnage", "Owner", "Révision", "Atelier"];
-    const rows = [headers];
-
-    for (let i = 0; i < 4; i++) {
-        const e = essieux[i] || { sn:"", type:"", tonnage:"", owner:"", rev:"", atelier:"" };
-        rows.push([e.sn, e.type, e.tonnage, e.owner, e.rev, e.atelier]);
-    }
-
-    const ws = XLSX.utils.aoa_to_sheet(rows);
-    XLSX.utils.book_append_sheet(wb, ws, "SCAN");
-
-    const wbout = XLSX.write(wb, { bookType: "xlsx", type: "array" });
-    const blob = new Blob([wbout], { type: "application/octet-stream" });
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
-    link.download = `SCAN_wagon_${wagon}.xlsx`;
-    link.click();
-}
-</script>
-
-</body>
-</html>
+// ----------------------
+// AJOUTER ESSIEU DANS TABLEAU
+// ----------------------
+function ajouterEssieu(texte) {
+    if (essieu >
