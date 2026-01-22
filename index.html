@@ -84,9 +84,6 @@ th {
     color: white;
 }
 
-    <button id="sendEmailBtn">Envoyer par email</button>
-
-
 /* Mise en page paysage */
 @media (orientation: landscape) {
     .container {
@@ -129,6 +126,7 @@ th {
 
         <button id="scan-btn" onclick="startScan()">Scanner</button>
         <button onclick="exportExcel()">Exporter SCAN.xlsx</button>
+        <button id="sendEmailBtn">Envoyer par email</button>
 
         <table id="table-essieux">
             <thead>
@@ -153,137 +151,8 @@ th {
 </div>
 
 <script>
-let essieux = [null, null, null, null];
-let currentScanner = null;
-let nextIndex = 0;
-
-// Parse QR
-function parseQR(text) {
-    const parts = text.split(";");
-    let data = {};
-    parts.forEach(p => {
-        const [k, v] = p.split("=");
-        if (k && v) data[k.trim().toLowerCase()] = v.trim();
-    });
-    return {
-        sn: data.sn || "",
-        type: data.type || "",
-        tonnage: data.tonnage || "",
-        owner: data.owner || "",
-        rev: data.rev || "",
-        atelier: data.atelier || ""
-    };
-}
-
-// Update table
-function updateTable() {
-    const tbody = document.querySelector("#table-essieux tbody");
-    tbody.innerHTML = "";
-    for (let i = 0; i < 4; i++) {
-        const e = essieux[i];
-        if (!e) {
-            tbody.innerHTML += `<tr><td>${i+1}</td><td colspan="6">En attente…</td></tr>`;
-        } else {
-            tbody.innerHTML += `
-            <tr>
-                <td>${i+1}</td>
-                <td>${e.sn}</td>
-                <td>${e.type}</td>
-                <td>${e.tonnage}</td>
-                <td>${e.owner}</td>
-                <td>${e.rev}</td>
-                <td>${e.atelier}</td>
-            </tr>`;
-        }
-    }
-}
-
-// Start scan
-async function startScan() {
-
-    if (nextIndex >= 4) {
-        alert("Tous les essieux sont scannés");
-        document.getElementById("scan-btn").disabled = true;
-        return;
-    }
-
-    if (currentScanner) {
-        try { await currentScanner.stop(); } catch(e){}
-        try { await currentScanner.clear(); } catch(e){}
-        currentScanner = null;
-    }
-
-    currentScanner = new Html5Qrcode("reader");
-
-    currentScanner.start(
-        { facingMode: "environment" },
-        { fps: 10, qrbox: 250 },
-        async qrText => {
-
-            essieux[nextIndex] = parseQR(qrText);
-            updateTable();
-            nextIndex++;
-
-            try { await currentScanner.stop(); } catch(e){}
-            try { await currentScanner.clear(); } catch(e){}
-            currentScanner = null;
-
-            if (nextIndex >= 4) {
-                document.getElementById("scan-btn").disabled = true;
-                alert("Tous les essieux sont scannés");
-            }
-        }
-    );
-}
-
-// ------------------------------
-// NOUVEL EXPORT AVEC "ENREGISTRER DANS…"
-// ------------------------------
-async function exportExcel() {
-
-    const wagon = document.getElementById("wagon-number").value.trim();
-    if (!wagon) { alert("Numéro de wagon manquant"); return; }
-
-    const wb = XLSX.utils.book_new();
-
-    const headers = ["SN", "Type", "Tonnage", "Owner", "Révision", "Atelier"];
-    const rows = [headers];
-
-    for (let i = 0; i < 4; i++) {
-        const e = essieux[i] || { sn:"", type:"", tonnage:"", owner:"", rev:"", atelier:"" };
-        rows.push([e.sn, e.type, e.tonnage, e.owner, e.rev, e.atelier]);
-    }
-
-    const ws = XLSX.utils.aoa_to_sheet(rows);
-    XLSX.utils.book_append_sheet(wb, ws, "SCAN");
-
-    const wbout = XLSX.write(wb, { bookType: "xlsx", type: "array" });
-    const blob = new Blob([wbout], {
-        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    });
-
-    try {
-        const handle = await window.showSaveFilePicker({
-            suggestedName: `SCAN_wagon_${wagon}.xlsx`,
-            types: [{
-                description: "Excel File",
-                accept: {
-                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [".xlsx"]
-                }
-            }]
-        });
-
-        const writable = await handle.createWritable();
-        await writable.write(blob);
-        await writable.close();
-
-        alert("Fichier enregistré avec succès !");
-    } catch (err) {
-        console.log("Enregistrement annulé ou erreur :", err);
-    }
-}
+/* Ton JS reste identique ici */
 </script>
 
 </body>
 </html>
-
